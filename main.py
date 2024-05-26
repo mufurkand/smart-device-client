@@ -7,6 +7,8 @@ import sys
 
 from time import sleep
 
+import requests
+
 class WorkerSignals(QObject):
   '''
   Defines the signals available from a running worker thread.
@@ -174,15 +176,23 @@ class MainWindow(QMainWindow):
       progressCallback.emit(0)
       try:
         self.ser = serial.Serial(self.port, 115200, timeout=3)
-        self.ser.open()
       except:
         self.statusBar.showMessage("Connection failed. retrying in 3s...")
         self.ser = None
         sleep(3)
-    progressCallback.emit(50)
-    # self.ser.write((self.ssid + "," + self.password).encode())
-    sleep(2)
-    progressCallback.emit(100)
+    progressCallback.emit(33)
+    credentials = self.ssid + "," + self.password
+    self.ser.write(credentials.encode())
+    progressCallback.emit(66)
+    while True:
+      self.url = self.ser.readline().decode().strip()
+      print(self.url)
+      
+      if self.url.startswith("I"):
+        self.url = self.url[3:]
+        break
+
+    self.lightControlButton.setEnabled(True)
 
   def connectionComplete(self):
     self.connectionControlButton.setText("Connected")
@@ -201,13 +211,22 @@ class MainWindow(QMainWindow):
     self.connectionControlButton.setText("Connecting...")
     self.threadpool.start(worker)
 
+  # TODO: spawn a worker for the requests
   def handleLightControl(self, checked):
     if checked:
-        self.statusBar.showMessage("LED is turned on")
-        self.lightControlButton.setText("Turn Off")
+      try:
+        requests.get("https://" + self.url + "/ledon", verify=False)
+      except:
+        pass
+      self.statusBar.showMessage("LED is turned on")
+      self.lightControlButton.setText("Turn Off")
     else:
-        self.statusBar.showMessage("LED is turned off")
-        self.lightControlButton.setText("Turn On")
+      try:
+        requests.get("https://" + self.url + "/ledoff", verify=False)
+      except:
+        pass
+      self.statusBar.showMessage("LED is turned off")
+      self.lightControlButton.setText("Turn On")
 
 app = QApplication([])
 dialog = UserInputDialog()
