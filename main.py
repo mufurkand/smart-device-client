@@ -1,5 +1,6 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QStatusBar, QDialog, QLineEdit, QDialogButtonBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QStatusBar
 from PySide6.QtCore import QRunnable, Slot, Signal, QObject, QThreadPool
+from UserInputDialog import UserInputDialog
 
 import serial
 import traceback
@@ -76,47 +77,6 @@ class Worker(QRunnable):
       self.signals.result.emit(result)  # Return the result of the processing
     finally:
       self.signals.finished.emit()  # Done
-
-# query the user for the serial port, SSID, and password
-class UserInputDialog(QDialog):
-  def __init__(self):
-    super().__init__()
-
-    self.setWindowTitle("Control Configuration")
-
-    layout = QVBoxLayout()
-
-    configPortRow = QHBoxLayout()
-    configPortLabel = QLabel("Enter the serial port:")
-    self.configPortLineEdit = QLineEdit()
-    configPortRow.addWidget(configPortLabel)
-    configPortRow.addWidget(self.configPortLineEdit)
-    layout.addLayout(configPortRow)
-
-    configSsidRow = QHBoxLayout()
-    configSsidLabel = QLabel("Enter the SSID:")
-    self.configSsidLineEdit = QLineEdit()
-    configSsidRow.addWidget(configSsidLabel)
-    configSsidRow.addWidget(self.configSsidLineEdit)
-    layout.addLayout(configSsidRow)
-
-    configPasswordRow = QHBoxLayout()
-    configPasswordLabel = QLabel("Enter the password:")
-    self.configPasswordLineEdit = QLineEdit()
-    configPasswordRow.addWidget(configPasswordLabel)
-    configPasswordRow.addWidget(self.configPasswordLineEdit)
-    layout.addLayout(configPasswordRow)
-
-    buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-    buttonBox.accepted.connect(self.accept)
-    buttonBox.rejected.connect(self.reject)
-
-    layout.addWidget(buttonBox)
-
-    self.setLayout(layout)
-
-  def getInputs(self):
-    return self.configPortLineEdit.text(), self.configSsidLineEdit.text(), self.configPasswordLineEdit.text()
 
 # create the main window
 class MainWindow(QMainWindow):
@@ -229,6 +189,7 @@ class MainWindow(QMainWindow):
       self.lightControlButton.setText("Turn On")
 
 app = QApplication([])
+
 dialog = UserInputDialog()
 dialog.rejected.connect(sys.exit)
 dialog.exec()
