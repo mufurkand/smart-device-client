@@ -160,5 +160,4 @@ cython_debug/
 #.idea/
 
 # Project specific certificate files
-*.key
-*.crt
+firebase.json

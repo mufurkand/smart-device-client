@@ -5,6 +5,9 @@ To run this program locally, first install these dependencies in a virtual envir
 ```
 pyside6
 pyserial
+requests
+python-dotenv
+firebase_admin
 ```
 
 Then just run the main.py file.
