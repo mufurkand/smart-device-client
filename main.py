@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QStatusBar
 from PySide6.QtCore import QRunnable, Slot, Signal, QObject, QThreadPool
 from UserInputDialog import UserInputDialog
+from AuthWindow import AuthWindow
 
 import serial
 import traceback
@@ -190,11 +191,14 @@ class MainWindow(QMainWindow):
 
 app = QApplication([])
 
+auth = AuthWindow()
+app.exec()
+authInputs = auth.getInputs()
+print(authInputs)
+
 dialog = UserInputDialog()
-dialog.rejected.connect(sys.exit)
-dialog.exec()
+app.exec()
 userInputs = dialog.getInputs()
 
 mainWindow = MainWindow(userInputs[0], userInputs[1], userInputs[2])
-
 app.exec()

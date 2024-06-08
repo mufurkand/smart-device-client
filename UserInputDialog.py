@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QDialogButtonBox
+import sys
 
 class UserInputDialog(QDialog):
   def __init__(self):
@@ -32,10 +33,12 @@ class UserInputDialog(QDialog):
     buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
     buttonBox.accepted.connect(self.accept)
     buttonBox.rejected.connect(self.reject)
+    self.rejected.connect(sys.exit)
 
     layout.addWidget(buttonBox)
 
     self.setLayout(layout)
+    self.show()
 
   def getInputs(self):
     return self.configPortLineEdit.text(), self.configSsidLineEdit.text(), self.configPasswordLineEdit.text()
