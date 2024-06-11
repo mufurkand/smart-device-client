@@ -6,6 +6,30 @@ from Worker import Worker
 import serial
 from time import sleep
 import requests
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
+import binascii
+
+# Provided key and IV in hex
+key_hex = "172D38434357620C20222D3843574105"
+iv_hex = "7B2B2E591DBB3AD54E32136ACD010507"
+
+# Convert hex key and IV to bytes
+key = binascii.unhexlify(key_hex)
+iv = binascii.unhexlify(iv_hex)
+
+def encrypt(plaintext, key, iv):
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    padded_text = pad(plaintext.encode(), AES.block_size)
+    encrypted_bytes = cipher.encrypt(padded_text)
+    # Return encrypted bytes as hex
+    return binascii.hexlify(encrypted_bytes).decode()
+
+def decrypt(encrypted_hex, key, iv):
+    encrypted_bytes = binascii.unhexlify(encrypted_hex)
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    decrypted_padded = cipher.decrypt(encrypted_bytes)
+    return unpad(decrypted_padded, AES.block_size).decode()
 
 # create the main window
 class MainWindow(QMainWindow):
@@ -19,6 +43,7 @@ class MainWindow(QMainWindow):
     self.port = port
     self.ssid = ssid
     self.password = password
+    self.ledOn = False
 
     self.threadpool = QThreadPool()
     self.ser = None
@@ -71,7 +96,10 @@ class MainWindow(QMainWindow):
         sleep(3)
     progressCallback.emit(33)
     credentials = self.ssid + "," + self.password
-    self.ser.write(credentials.encode())
+    encryptedCredentials = encrypt(credentials, key, iv)
+    message = encryptedCredentials + "," + str(len(credentials))
+    print(message)
+    self.ser.write(message.encode())
     progressCallback.emit(66)
     while True:
       self.url = self.ser.readline().decode().strip()
@@ -103,13 +131,16 @@ class MainWindow(QMainWindow):
     self.connectionControlButton.setText("Connecting...")
     self.threadpool.start(worker)
   
-  def RequestToServer(self, progressCallback, url, endpoint):
+  def RequestToServer(self, progressCallback):
     progressCallback.emit(0)
     try:
-      requests.get("https://" + url + endpoint, verify=False)
+      requestUrl = "https://" + self.url + ("/ledoff" if self.ledOn else "/ledon")
+      requests.get(requestUrl, verify=False)
       progressCallback.emit(100)
     except:
       progressCallback.emit(-1)
+    
+    self.ledOn = not self.ledOn
     
   def setRequestProgress(self, n):
     if n == -1:
@@ -117,8 +148,8 @@ class MainWindow(QMainWindow):
       return
     self.statusBar.showMessage(f"Sending request... {n}%")
 
-  def requestComplete(self, endpoint):
-    if endpoint == "/ledon":
+  def requestComplete(self):
+    if self.ledOn:
       self.lightControlButton.setText("Turn Off")
       self.statusBar.showMessage("LED is turned on")
     else:
@@ -129,15 +160,15 @@ class MainWindow(QMainWindow):
   # TODO: spawn a worker for the requests
   def handleLightControl(self, checked):
     if checked:
-      worker = Worker(self.RequestToServer, self.url, "/ledon")
+      worker = Worker(self.RequestToServer)
       worker.signals.progress.connect(self.setRequestProgress)
-      worker.signals.finished.connect(self.requestComplete, "/ledon")
+      worker.signals.finished.connect(self.requestComplete)
 
       self.threadpool.start(worker)
     else:
-      worker = Worker(self.RequestToServer, self.url, "/ledoff")
+      worker = Worker(self.RequestToServer)
       worker.signals.progress.connect(self.setRequestProgress)
-      worker.signals.finished.connect(self.requestComplete, "/ledoff")
+      worker.signals.finished.connect(self.requestComplete)
 
       self.threadpool.start(worker)
 

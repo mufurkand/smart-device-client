@@ -8,6 +8,7 @@ pyserial
 requests
 python-dotenv
 firebase_admin
+pycryptodome
 ```
 
 Then just run the main.py file.
