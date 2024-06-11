@@ -102,23 +102,44 @@ class MainWindow(QMainWindow):
     # Execute
     self.connectionControlButton.setText("Connecting...")
     self.threadpool.start(worker)
+  
+  def RequestToServer(self, progressCallback, url, endpoint):
+    progressCallback.emit(0)
+    try:
+      requests.get("https://" + url + endpoint, verify=False)
+      progressCallback.emit(100)
+    except:
+      progressCallback.emit(-1)
+    
+  def setRequestProgress(self, n):
+    if n == -1:
+      self.statusBar.showMessage("Request failed.")
+      return
+    self.statusBar.showMessage(f"Sending request... {n}%")
+
+  def requestComplete(self, endpoint):
+    if endpoint == "/ledon":
+      self.lightControlButton.setText("Turn Off")
+      self.statusBar.showMessage("LED is turned on")
+    else:
+      self.lightControlButton.setText("Turn On")
+      self.statusBar.showMessage("LED is turned off")
+
 
   # TODO: spawn a worker for the requests
   def handleLightControl(self, checked):
     if checked:
-      try:
-        requests.get("https://" + self.url + "/ledon", verify=False)
-      except:
-        pass
-      self.statusBar.showMessage("LED is turned on")
-      self.lightControlButton.setText("Turn Off")
+      worker = Worker(self.RequestToServer, self.url, "/ledon")
+      worker.signals.progress.connect(self.setRequestProgress)
+      worker.signals.finished.connect(self.requestComplete, "/ledon")
+
+      self.threadpool.start(worker)
     else:
-      try:
-        requests.get("https://" + self.url + "/ledoff", verify=False)
-      except:
-        pass
-      self.statusBar.showMessage("LED is turned off")
-      self.lightControlButton.setText("Turn On")
+      worker = Worker(self.RequestToServer, self.url, "/ledoff")
+      worker.signals.progress.connect(self.setRequestProgress)
+      worker.signals.finished.connect(self.requestComplete, "/ledoff")
+
+      self.threadpool.start(worker)
 
 app = QApplication([])
 
