@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget, QLineEdit, QMainWindow, QStatusBar
-from PySide6.QtCore import QThreadPool
+from PySide6.QtCore import QThreadPool, Qt
 import firebase_admin
 from firebase_admin import auth
 import sys
@@ -14,7 +14,6 @@ class AuthWindow(QMainWindow):
     super().__init__()
 
     self.setWindowTitle("Authorization")
-    self.resize(300, 75)
 
     self.threadpool = QThreadPool()
 
@@ -39,6 +38,7 @@ class AuthWindow(QMainWindow):
     self.loginButton = QPushButton("Log In")
     self.loginButton.clicked.connect(self.handleLogin)
     self.loginButton.setEnabled(False)
+    self.loginButton.setDefault(True)
     self.registerButton = QPushButton("Register")
     self.registerButton.clicked.connect(self.handleRegister)
     self.registerButton.setEnabled(False)
@@ -46,6 +46,7 @@ class AuthWindow(QMainWindow):
     buttonRow.addWidget(self.registerButton)
 
     layout = QVBoxLayout()
+    layout.setContentsMargins(50,50,50,50)
     layout.addLayout(emailRow)
     layout.addLayout(passwordRow)
     layout.addLayout(buttonRow)
@@ -58,7 +59,8 @@ class AuthWindow(QMainWindow):
 
     # FIXME: timer errors are probably due to the fact gui updates are not happening in signal-connected functions
     worker = Worker(self.connectToDatabase)
-    worker.signals.finished.connect(self.handleDatabaseConnection)
+    worker.signals.progress.connect(self.setConnectionProgress)
+    worker.signals.finished.connect(self.handleDatabaseConnected)
 
     self.statusBar.showMessage("Preparing to connect to the database...")
     self.threadpool.start(worker)
@@ -79,19 +81,31 @@ class AuthWindow(QMainWindow):
     if not self.programmaticClose:
       sys.exit()
 
+  def keyPressEvent(self, event):
+    if event.key() == Qt.Key_Return:
+      self.handleLogin()
+
   def connectToDatabase(self, progressCallback):
+    progressCallback.emit(0)
     while True:
       try:
         cred = firebase_admin.credentials.Certificate("firebase.json")
         firebase_admin.initialize_app(cred, {
           "databaseURL": self.config["FIREBASE_URL"]
         })
+        progressCallback.emit(100)
         break
       except:
-        self.statusBar.showMessage("Connection failed. retrying in 3s...")
+        progressCallback.emit(-1)
         sleep(3)
 
-  def handleDatabaseConnection(self):
+  def setConnectionProgress(self, n):
+    if n == -1:
+      self.statusBar.showMessage("Connection failed. retrying in 3s...")
+      return
+    self.statusBar.showMessage(f"Connecting to the database... {n}%")
+
+  def handleDatabaseConnected(self):
     self.statusBar.showMessage("Connected to the database.")
     self.unlockButtons()
 
@@ -106,21 +120,34 @@ class AuthWindow(QMainWindow):
     self.lockButtons()
 
     if email == "" or password == "":
-      self.statusBar.showMessage("Please fill in the email and password fields.")
+      progressCallback.emit(-1)
       return
 
     try:
       auth.create_user(email=email, password=password)
     except:
-      self.statusBar.showMessage("User registration failed. Please try again.")
-      return
+      progressCallback.emit(-1)
 
-    self.statusBar.showMessage("User registered successfully.")
+  def setRegisterProgress(self, n):
+    match n:
+      case -1:
+        self.statusBar.showMessage("Please fill in the email and password fields.")
+        return
+      case -2:
+        self.statusBar.showMessage("User registration failed. Please try again.")
+        return
+
+    self.statusBar.showMessage(f"Registering user... {n}%")
+  
+  def handleRegisterComplete(self):
     self.clearFields()
+    self.statusBar.showMessage("User registered successfully.")
+    self.unlockButtons()
 
   def handleRegister(self):
     worker = Worker(self.registerUserToDatabase)
-    worker.signals.finished.connect(self.unlockButtons)
+    worker.signals.progress.connect(self.setRegisterProgress)
+    worker.signals.finished.connect(self.handleRegisterComplete)
 
     self.statusBar.showMessage("Preparing to register user...")
     self.threadpool.start(worker)
@@ -132,8 +159,7 @@ class AuthWindow(QMainWindow):
     self.lockButtons()
 
     if email == "" or password == "":
-      self.statusBar.showMessage("Please fill in the email and password fields.")
-      return
+      return False
 
     try:
       payload = json.dumps({"email":email, "password":password})
@@ -147,31 +173,30 @@ class AuthWindow(QMainWindow):
       response = r.json()
 
       if 'error' in response and response['error']['message'] == 'INVALID_EMAIL':
-        self.statusBar.showMessage("Invalid email. Please try again.")
         return False
 
       if 'error' in response and response['error']['message'] == 'INVALID_LOGIN_CREDENTIALS':
-        self.statusBar.showMessage("Invalid password. Please try again.")
         return False
 
     except Exception as e:
       print(e)
-      self.statusBar.showMessage("User login failed. Please try again.")
       return
 
-    self.statusBar.showMessage("User logged in successfully.")
-    self.clearFields()
     return True
   
-  def closeWindow(self, result):
+  def loginResult(self, result):
     if result:
       self.programmaticClose = True
       self.close()
       self.programmaticClose = False
+      return
+    
+    self.statusBar.showMessage("User login failed. Please try again.")
+
 
   def handleLogin(self):
     worker = Worker(self.loginUser)
-    worker.signals.result.connect(self.closeWindow)
+    worker.signals.result.connect(self.loginResult)
     worker.signals.finished.connect(self.unlockButtons)
 
     self.statusBar.showMessage("Preparing to log in...")

@@ -8,6 +8,7 @@ class UserInputDialog(QDialog):
     self.setWindowTitle("Control Configuration")
 
     layout = QVBoxLayout()
+    layout.setContentsMargins(50,50,50,50)
 
     configPortRow = QHBoxLayout()
     configPortLabel = QLabel("Enter the serial port:")

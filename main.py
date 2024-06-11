@@ -13,7 +13,6 @@ class MainWindow(QMainWindow):
     super().__init__()
 
     self.setWindowTitle("Smart Device Control")
-    self.resize(300, 75)
 
     self.statusBar = QStatusBar()
     self.setStatusBar(self.statusBar)
@@ -50,6 +49,7 @@ class MainWindow(QMainWindow):
     lightControlRow.addWidget(self.lightControlButton)
 
     layout = QVBoxLayout()
+    layout.setContentsMargins(50,50,50,50)
     layout.addLayout(connectionControlRow)
     layout.addLayout(lightControlRow)
 
@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
       try:
         self.ser = serial.Serial(self.port, 115200, timeout=3)
       except:
-        self.statusBar.showMessage("Connection failed. retrying in 3s...")
+        progressCallback.emit(-1)
         self.ser = None
         sleep(3)
     progressCallback.emit(33)
@@ -81,20 +81,23 @@ class MainWindow(QMainWindow):
         self.url = self.url[3:]
         break
 
-    self.lightControlButton.setEnabled(True)
 
   def connectionComplete(self):
     self.connectionControlButton.setText("Connected")
     self.statusBar.showMessage("Connected to the device")
+    self.lightControlButton.setEnabled(True)
   
-  def setProgress(self, n):
+  def setConnectionProgress(self, n):
+    if n == -1:
+      self.statusBar.showMessage("Connection failed. retrying in 3s...")
+      return
     self.statusBar.showMessage(f"Establishing connection... {n}%")
 
   def handleConnectionControl(self):
     self.connectionControlButton.setEnabled(False)
     worker = Worker(self.connectToSerial) # Any other args, kwargs are passed to the run function
     worker.signals.finished.connect(self.connectionComplete)
-    worker.signals.progress.connect(self.setProgress)
+    worker.signals.progress.connect(self.setConnectionProgress)
 
     # Execute
     self.connectionControlButton.setText("Connecting...")
