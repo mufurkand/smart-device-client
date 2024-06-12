@@ -43,7 +43,10 @@ class MainWindow(QMainWindow):
     self.port = port
     self.ssid = ssid
     self.password = password
+
     self.ledOn = False
+    self.sirenOn = False
+    self.trunkOpen = False
 
     self.threadpool = QThreadPool()
     self.ser = None
@@ -73,10 +76,36 @@ class MainWindow(QMainWindow):
     lightControlRow.addWidget(lightControlLabel)
     lightControlRow.addWidget(self.lightControlButton)
 
+    sirenControlRow = QHBoxLayout()
+
+    sirenControlLabel = QLabel("Siren Control:")
+
+    self.sirenControlButton = QPushButton("Turn On")
+    self.sirenControlButton.setCheckable(True)
+    self.sirenControlButton.setEnabled(False)
+    self.sirenControlButton.clicked.connect(self.handleSirenControl)
+
+    sirenControlRow.addWidget(sirenControlLabel)
+    sirenControlRow.addWidget(self.sirenControlButton)
+
+    trunkControlRow = QHBoxLayout()
+
+    trunkControlLabel = QLabel("Trunk Control:")
+
+    self.trunkControlButton = QPushButton("Open")
+    self.trunkControlButton.setCheckable(True)
+    self.trunkControlButton.setEnabled(False)
+    self.trunkControlButton.clicked.connect(self.handleTrunkControl)
+
+    trunkControlRow.addWidget(trunkControlLabel)
+    trunkControlRow.addWidget(self.trunkControlButton)
+
     layout = QVBoxLayout()
     layout.setContentsMargins(50,50,50,50)
     layout.addLayout(connectionControlRow)
     layout.addLayout(lightControlRow)
+    layout.addLayout(sirenControlRow)
+    layout.addLayout(trunkControlRow)
 
     controls = QWidget()
     controls.setLayout(layout)
@@ -84,6 +113,16 @@ class MainWindow(QMainWindow):
     self.setCentralWidget(controls)
     
     self.show()
+
+  def enableButtons(self):
+    self.lightControlButton.setEnabled(True)
+    self.sirenControlButton.setEnabled(True)
+
+  def disableButtons(self):
+    self.lightControlButton.setEnabled(False)
+    self.sirenControlButton.setEnabled(False)
+
+  # SERIAL CONNECTION WORKER
 
   def connectToSerial(self, progressCallback):
     while self.ser is None:
@@ -103,7 +142,6 @@ class MainWindow(QMainWindow):
     progressCallback.emit(66)
     while True:
       self.url = self.ser.readline().decode().strip()
-      print(self.url)
       
       if self.url.startswith("I"):
         self.url = self.url[3:]
@@ -113,7 +151,7 @@ class MainWindow(QMainWindow):
   def connectionComplete(self):
     self.connectionControlButton.setText("Connected")
     self.statusBar.showMessage("Connected to the device")
-    self.lightControlButton.setEnabled(True)
+    self.enableButtons()
   
   def setConnectionProgress(self, n):
     if n == -1:
@@ -130,8 +168,12 @@ class MainWindow(QMainWindow):
     # Execute
     self.connectionControlButton.setText("Connecting...")
     self.threadpool.start(worker)
+
+  # SERIAL CONNECTION WORKER END
+
+  # LED CONTROL WORKER
   
-  def RequestToServer(self, progressCallback):
+  def ledRequest(self, progressCallback):
     self.lightControlButton.setEnabled(False)
     progressCallback.emit(0)
     try:
@@ -143,13 +185,13 @@ class MainWindow(QMainWindow):
     
     self.ledOn = not self.ledOn
     
-  def setRequestProgress(self, n):
+  def setLedProgress(self, n):
     if n == -1:
       self.statusBar.showMessage("Request failed.")
       return
     self.statusBar.showMessage(f"Sending request... {n}%")
 
-  def requestComplete(self):
+  def ledRequestComplete(self):
     if self.ledOn:
       self.lightControlButton.setText("Turn Off")
       self.statusBar.showMessage("LED is turned on")
@@ -159,21 +201,112 @@ class MainWindow(QMainWindow):
       self.statusBar.showMessage("LED is turned off")
       self.lightControlButton.setEnabled(True)
 
-
-  # TODO: spawn a worker for the requests
   def handleLightControl(self, checked):
     if checked:
-      worker = Worker(self.RequestToServer)
-      worker.signals.progress.connect(self.setRequestProgress)
-      worker.signals.finished.connect(self.requestComplete)
+      worker = Worker(self.ledRequest)
+      worker.signals.progress.connect(self.setLedProgress)
+      worker.signals.finished.connect(self.ledRequestComplete)
 
       self.threadpool.start(worker)
     else:
-      worker = Worker(self.RequestToServer)
-      worker.signals.progress.connect(self.setRequestProgress)
-      worker.signals.finished.connect(self.requestComplete)
+      worker = Worker(self.ledRequest)
+      worker.signals.progress.connect(self.setLedProgress)
+      worker.signals.finished.connect(self.ledRequestComplete)
 
       self.threadpool.start(worker)
+    
+  # LED CONTROL WORKER END
+
+  # SIREN CONTROL WORKER
+
+  def sirenRequest(self, progressCallback):
+    self.lightControlButton.setEnabled(False)
+    progressCallback.emit(0)
+    try:
+      requestUrl = "https://" + self.url + ("/sirenoff" if self.ledOn else "/sirenon")
+      requests.get(requestUrl, verify=False)
+      progressCallback.emit(100)
+    except:
+      progressCallback.emit(-1)
+    
+    self.sirenOn = not self.sirenOn
+    
+  def setSirenProgress(self, n):
+    if n == -1:
+      self.statusBar.showMessage("Request failed.")
+      return
+    self.statusBar.showMessage(f"Sending request... {n}%")
+
+  def sirenRequestComplete(self):
+    if self.sirenOn:
+      self.lightControlButton.setText("Turn Off")
+      self.statusBar.showMessage("LED is turned on")
+      self.lightControlButton.setEnabled(True)
+    else:
+      self.lightControlButton.setText("Turn On")
+      self.statusBar.showMessage("LED is turned off")
+      self.lightControlButton.setEnabled(True)
+
+  def handleSirenControl(self, checked):
+    if checked:
+      worker = Worker(self.sirenRequest)
+      worker.signals.progress.connect(self.setSirenProgress)
+      worker.signals.finished.connect(self.sirenRequestComplete)
+
+      self.threadpool.start(worker)
+    else:
+      worker = Worker(self.sirenRequest)
+      worker.signals.progress.connect(self.setSirenProgress)
+      worker.signals.finished.connect(self.sirenRequestComplete)
+
+      self.threadpool.start(worker)
+
+  # SIREN CONTROL WORKER END
+
+  # TRUNK CONTROL WORKER
+
+  def trunkRequest(self, progressCallback):
+    self.lightControlButton.setEnabled(False)
+    progressCallback.emit(0)
+    try:
+      requestUrl = "https://" + self.url + ("/trunkoff" if self.ledOn else "/trunkon")
+      requests.get(requestUrl, verify=False)
+      progressCallback.emit(100)
+    except:
+      progressCallback.emit(-1)
+    
+    self.trunkOpen = not self.trunkOpen
+    
+  def setTrunkProgress(self, n):
+    if n == -1:
+      self.statusBar.showMessage("Request failed.")
+      return
+    self.statusBar.showMessage(f"Sending request... {n}%")
+
+  def trunkRequestComplete(self):
+    if self.trunkOpen:
+      self.lightControlButton.setText("Turn Off")
+      self.statusBar.showMessage("LED is turned on")
+      self.lightControlButton.setEnabled(True)
+    else:
+      self.lightControlButton.setText("Turn On")
+      self.statusBar.showMessage("LED is turned off")
+      self.lightControlButton.setEnabled(True)
+
+  def handleTrunkControl(self, checked):
+    if checked:
+      worker = Worker(self.trunkRequest)
+      worker.signals.progress.connect(self.setTrunkProgress)
+      worker.signals.finished.connect(self.trunkRequestComplete)
+
+      self.threadpool.start(worker)
+    else:
+      worker = Worker(self.trunkRequest)
+      worker.signals.progress.connect(self.setTrunkProgress)
+      worker.signals.finished.connect(self.trunkRequestComplete)
+
+      self.threadpool.start(worker)
+
 
 app = QApplication([])
 
