@@ -1,0 +1,6 @@
+pyside6
+pyserial
+requests
+python-dotenv
+firebase_admin
+pycryptodome

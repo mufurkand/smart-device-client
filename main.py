@@ -132,6 +132,7 @@ class MainWindow(QMainWindow):
     self.threadpool.start(worker)
   
   def RequestToServer(self, progressCallback):
+    self.lightControlButton.setEnabled(False)
     progressCallback.emit(0)
     try:
       requestUrl = "https://" + self.url + ("/ledoff" if self.ledOn else "/ledon")
@@ -152,9 +153,11 @@ class MainWindow(QMainWindow):
     if self.ledOn:
       self.lightControlButton.setText("Turn Off")
       self.statusBar.showMessage("LED is turned on")
+      self.lightControlButton.setEnabled(True)
     else:
       self.lightControlButton.setText("Turn On")
       self.statusBar.showMessage("LED is turned off")
+      self.lightControlButton.setEnabled(True)
 
 
   # TODO: spawn a worker for the requests

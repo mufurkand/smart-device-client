@@ -1,14 +1,5 @@
 # smart-device-client
 
-To run this program locally, first install these dependencies in a virtual environment:
-
-```
-pyside6
-pyserial
-requests
-python-dotenv
-firebase_admin
-pycryptodome
-```
+To run this program locally, first install the requirements in `requirements.txt`.
 
 Then just run the main.py file.
