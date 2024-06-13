@@ -57,7 +57,6 @@ class AuthWindow(QMainWindow):
     self.setCentralWidget(auth)
     self.show()
 
-    # FIXME: timer errors are probably due to the fact gui updates are not happening in signal-connected functions
     worker = Worker(self.connectToDatabase)
     worker.signals.progress.connect(self.setConnectionProgress)
     worker.signals.finished.connect(self.handleDatabaseConnected)
@@ -115,7 +114,6 @@ class AuthWindow(QMainWindow):
   def registerUserToDatabase(self, progressCallback):
     email = self.emailLineEdit.text()
     password = self.passwordLineEdit.text()
-    print(email, password)
 
     self.lockButtons()
 

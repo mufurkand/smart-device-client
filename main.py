@@ -117,10 +117,12 @@ class MainWindow(QMainWindow):
   def enableButtons(self):
     self.lightControlButton.setEnabled(True)
     self.sirenControlButton.setEnabled(True)
+    self.trunkControlButton.setEnabled(True)
 
   def disableButtons(self):
     self.lightControlButton.setEnabled(False)
     self.sirenControlButton.setEnabled(False)
+    self.trunkControlButton.setEnabled(False)
 
   # SERIAL CONNECTION WORKER
 
@@ -177,7 +179,12 @@ class MainWindow(QMainWindow):
     self.lightControlButton.setEnabled(False)
     progressCallback.emit(0)
     try:
-      requestUrl = "https://" + self.url + ("/ledoff" if self.ledOn else "/ledon")
+      requestUrl = "";
+      if self.ledOn:
+        requestUrl = "https://" + self.url + "/ledoff"
+      else:
+        requestUrl = "https://" + self.url + "/ledon"
+
       requests.get(requestUrl, verify=False)
       progressCallback.emit(100)
     except:
@@ -223,7 +230,12 @@ class MainWindow(QMainWindow):
     self.lightControlButton.setEnabled(False)
     progressCallback.emit(0)
     try:
-      requestUrl = "https://" + self.url + ("/sirenoff" if self.ledOn else "/sirenon")
+      requestUrl = "";
+      if self.sirenOn:
+        requestUrl = "https://" + self.url + "/sirenoff"
+      else:
+        requestUrl = "https://" + self.url + "/sirenon"
+
       requests.get(requestUrl, verify=False)
       progressCallback.emit(100)
     except:
@@ -239,13 +251,13 @@ class MainWindow(QMainWindow):
 
   def sirenRequestComplete(self):
     if self.sirenOn:
-      self.lightControlButton.setText("Turn Off")
-      self.statusBar.showMessage("LED is turned on")
-      self.lightControlButton.setEnabled(True)
+      self.sirenControlButton.setText("Turn Off")
+      self.statusBar.showMessage("Siren is turned on")
+      self.sirenControlButton.setEnabled(True)
     else:
-      self.lightControlButton.setText("Turn On")
-      self.statusBar.showMessage("LED is turned off")
-      self.lightControlButton.setEnabled(True)
+      self.sirenControlButton.setText("Turn On")
+      self.statusBar.showMessage("Siren is turned off")
+      self.sirenControlButton.setEnabled(True)
 
   def handleSirenControl(self, checked):
     if checked:
@@ -269,7 +281,12 @@ class MainWindow(QMainWindow):
     self.lightControlButton.setEnabled(False)
     progressCallback.emit(0)
     try:
-      requestUrl = "https://" + self.url + ("/trunkoff" if self.ledOn else "/trunkon")
+      requestUrl = "";
+      if self.trunkOpen:
+        requestUrl = "https://" + self.url + "/trunkoff"
+      else:
+        requestUrl = "https://" + self.url + "/trunkon"
+
       requests.get(requestUrl, verify=False)
       progressCallback.emit(100)
     except:
@@ -285,13 +302,13 @@ class MainWindow(QMainWindow):
 
   def trunkRequestComplete(self):
     if self.trunkOpen:
-      self.lightControlButton.setText("Turn Off")
-      self.statusBar.showMessage("LED is turned on")
-      self.lightControlButton.setEnabled(True)
+      self.trunkControlButton.setText("Close")
+      self.statusBar.showMessage("Trunk is open")
+      self.trunkControlButton.setEnabled(True)
     else:
-      self.lightControlButton.setText("Turn On")
-      self.statusBar.showMessage("LED is turned off")
-      self.lightControlButton.setEnabled(True)
+      self.trunkControlButton.setText("Open")
+      self.statusBar.showMessage("Trunk is closed")
+      self.trunkControlButton.setEnabled(True)
 
   def handleTrunkControl(self, checked):
     if checked:
