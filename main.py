@@ -227,7 +227,7 @@ class MainWindow(QMainWindow):
   # SIREN CONTROL WORKER
 
   def sirenRequest(self, progressCallback):
-    self.lightControlButton.setEnabled(False)
+    self.sirenControlButton.setEnabled(False)
     progressCallback.emit(0)
     try:
       requestUrl = "";
@@ -278,7 +278,7 @@ class MainWindow(QMainWindow):
   # TRUNK CONTROL WORKER
 
   def trunkRequest(self, progressCallback):
-    self.lightControlButton.setEnabled(False)
+    self.trunkControlButton.setEnabled(False)
     progressCallback.emit(0)
     try:
       requestUrl = "";
